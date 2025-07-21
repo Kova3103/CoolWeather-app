@@ -1,0 +1,5 @@
+com\coolweather\entity\FavoriteCity.class
+com\coolweather\repository\FavoriteCityRepository.class
+com\coolweather\CoolWeatherApplication.class
+com\coolweather\controller\WeatherController.class
+com\coolweather\service\WeatherService.class
