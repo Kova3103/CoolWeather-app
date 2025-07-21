@@ -2,4 +2,74 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Apple-like font and smoothing */
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Weather backgrounds with Apple-like gradients and live animations */
+.sunny {
+  background: linear-gradient(to bottom, #87CEEB, #E0F6FF);
+  animation: sunny 20s ease-in-out infinite;
+}
+
+.cloudy {
+  background: linear-gradient(to bottom, #A9B4C2, #D3D3D3);
+  animation: cloudy 30s linear infinite;
+}
+
+.rainy {
+  background: linear-gradient(to bottom, #5A6A7A, #A9A9A9);
+  animation: rain 3s linear infinite;
+}
+
+.snowy {
+  background: linear-gradient(to bottom, #C0C0C0, #FFFFFF);
+  animation: snow 5s linear infinite;
+}
+
+.clear {
+  background: linear-gradient(to bottom, #87CEEB, #E0F6FF);
+  animation: sunny 20s ease-in-out infinite;
+}
+
+/* Live animations (Apple-like effects) */
+@keyframes sunny {
+  0% { opacity: 1; }
+  50% { opacity: 0.9; }
+  100% { opacity: 1; } /* Subtle glow pulse for sun */
+}
+
+@keyframes cloudy {
+  0% { background-position: 0 0; }
+  100% { background-position: -500px 0; } /* Drifting clouds */
+}
+
+@keyframes rain {
+  0% { background-position: 0 0; }
+  100% { background-position: 0 200px; } /* Falling rain lines */
+}
+
+@keyframes snow {
+  0% { background-position: 0 0; }
+  100% { background-position: 0 100px; } /* Falling snow flakes */
+}
+
+/* Forecast card styles (rounded, shadow like Apple) */
+.shadow-lg {
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.rounded-lg {
+  border-radius: 20px; /* Apple-like rounded corners */
+}
+
+/* Icons are sized appropriately */
+img {
+  width: 100px;
+  height: 100px;
+}
+
 
