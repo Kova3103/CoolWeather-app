@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import './index.css'; // Use index.css for styles
+import './index.css';
 
 /**
  * Main component for CoolWeather app.
@@ -15,6 +15,10 @@ function App() {
   const [country, setCountry] = useState(null);
   const [countryWeather, setCountryWeather] = useState(null);
   const [isNight, setIsNight] = useState(false);
+  const [currentTime, setCurrentTime] = useState('');
+  const [showDetails, setShowDetails] = useState(false);
+  const [hourlyTemps, setHourlyTemps] = useState([]); // 24-hour temperature data
+  const [show24hForecast, setShow24hForecast] = useState(false); // <-- This fixes the error
 
   const countryCapitals = {
     "AF": "Kabul",
@@ -267,11 +271,15 @@ function App() {
     setLoading(true);
     setError(null);
     try {
+      console.log(`Fetching weather for ${searchCity}`); // Debug log
       const res = await axios.get(`http://localhost:8080/api/weather/${searchCity}`);
       setWeather(res.data);
       const currentTime = Math.floor(Date.now() / 1000);
       const sunrise = res.data.sys.sunrise;
       const sunset = res.data.sys.sunset;
+      const timezoneOffset = res.data.timezone; // In seconds
+      const localTime = new Date((currentTime + timezoneOffset) * 1000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
+      setCurrentTime(localTime); // Store current time
       setIsNight(currentTime < sunrise || currentTime > sunset);
       const countryCode = res.data.sys.country;
       setCountry(countryCode);
@@ -281,9 +289,40 @@ function App() {
         setCountryWeather(countryRes.data);
       }
       const forecastRes = await axios.get(`http://localhost:8080/api/forecast/${searchCity}`);
-      setForecast(forecastRes.data.list.slice(0, 5));
+      const forecastList = forecastRes.data.list;
+      // Group by day and calculate averages
+      const dailyForecasts = {};
+      forecastList.forEach(item => {
+        const date = new Date(item.dt * 1000).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
+        if (!dailyForecasts[date]) {
+          dailyForecasts[date] = { tempSum: 0, humiditySum: 0, count: 0, descriptions: [] };
+        }
+        dailyForecasts[date].tempSum += item.main.temp;
+        dailyForecasts[date].humiditySum += item.main.humidity;
+        dailyForecasts[date].count += 1;
+        dailyForecasts[date].descriptions.push(item.weather[0].description);
+      });
+      // Take the first 5 days' averages
+      const averagedForecasts = Object.keys(dailyForecasts).slice(0, 5).map(date => {
+        const data = dailyForecasts[date];
+        const avgTemp = data.tempSum / data.count;
+        const avgHumidity = data.humiditySum / data.count;
+        const mostCommonDescription = data.descriptions.sort((a, b) =>
+          data.descriptions.filter(v => v === a).length - data.descriptions.filter(v => v === b).length
+        ).pop(); // Mode of descriptions
+        return { date, avgTemp, avgHumidity, description: mostCommonDescription };
+      });
+      setForecast(averagedForecasts);
+      // Extract next 24 hours of temperature data (approx. 8 entries at 3-hour intervals)
+      const now = Math.floor(Date.now() / 1000);
+      const next24Hours = forecastList.filter(item => item.dt >= now && item.dt <= now + 24 * 3600);
+      setHourlyTemps(next24Hours.map(item => ({
+        time: new Date(item.dt * 1000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+        temp: item.main.temp
+      })));
     } catch (err) {
-      setError('Error fetching weather: ' + (err.response ? err.response.data : err.message));
+      console.error('Weather fetch error:', err); // Debug error
+      setError('Error fetching weather: ' + (err.response ? err.response.data : err.message) + ' (Check API key or city name)');
     } finally {
       setLoading(false);
     }
@@ -291,14 +330,8 @@ function App() {
 
   const addFavorite = async (favCity) => {
     try {
-      if (favorites.includes(favCity)) {
-        setError('City already in favorites.');
-        return;
-      }
-      const response = await axios.post('http://localhost:8080/api/favorites', { city: favCity });
-      if (response.status === 200) {
-        loadFavorites();
-      }
+      await axios.post('http://localhost:8080/api/favorites', { city: favCity });
+      loadFavorites();
     } catch (err) {
       setError('Error adding favorite: ' + (err.response ? err.response.data : err.message));
     }
@@ -306,10 +339,8 @@ function App() {
 
   const removeFavorite = async (favCity) => {
     try {
-      const response = await axios.delete(`http://localhost:8080/api/favorites/${favCity}`);
-      if (response.status === 200) {
-        loadFavorites();
-      }
+      await axios.delete(`http://localhost:8080/api/favorites/${favCity}`);
+      loadFavorites();
     } catch (err) {
       setError('Error removing favorite: ' + (err.response ? err.response.data : err.message));
     }
@@ -327,23 +358,38 @@ function App() {
   useEffect(() => {
     setLoading(true);
     loadFavorites();
-    navigator.geolocation.getCurrentPosition((pos) => {
-      axios.get(`http://localhost:8080/api/reverse?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}`)
-        .then((geoRes) => {
-          const localCity = geoRes.data;
-          setCity(localCity);
-          fetchWeather(localCity);
-        })
-        .catch(() => fetchWeather('London'));
-    }, (err) => {
-      setError('Geolocation error: ' + err.message);
-      fetchWeather('London');
-    });
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        console.log("Geolocation coordinates:", pos.coords); // Debug log
+        axios.get(`http://localhost:8080/api/reverse?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}`)
+          .then((geoRes) => {
+            let localCity = geoRes.data;
+            console.log("Reverse geocode result:", localCity); // Debug log
+            // Fallback to a known city if the result is a municipality or unexpected
+            if (localCity.toLowerCase().includes("municipality") || !localCity.match(/^[a-zA-Z\s]+$/)) {
+              localCity = "London"; // Default to London if not a city
+            }
+            setCity(localCity);
+            fetchWeather(localCity);
+          })
+          .catch((err) => {
+            console.error("Geolocation reverse error:", err);
+            setError('Geolocation error: ' + err.message);
+            fetchWeather('London');
+          });
+      },
+      (err) => {
+        console.error("Geolocation error:", err);
+        setError('Geolocation error: ' + err.message);
+        fetchWeather('London');
+      }
+    );
   }, []);
 
   const handleSearch = (e) => {
     e.preventDefault();
     if (city.trim()) {
+      console.log("Searching for city:", city); // Debug log
       fetchWeather(city);
       setCity('');
     } else {
@@ -361,8 +407,26 @@ function App() {
     return 'clear';
   };
 
-  const getIconUrl = (icon) => {
-    return `http://openweathermap.org/img/wn/${icon}@2x.png`;
+  const getIconUrl = (description) => {
+    // Map description to a representative icon (simplified mapping)
+    const weatherMap = {
+      'clear sky': '01d',
+      'few clouds': '02d',
+      'scattered clouds': '03d',
+      'broken clouds': '04d',
+      'shower rain': '09d',
+      'rain': '10d',
+      'thunderstorm': '11d',
+      'snow': '13d',
+      'mist': '50d'
+    };
+    const iconCode = weatherMap[description.toLowerCase()] || '01d'; // Default to clear sky
+    return `http://openweathermap.org/img/wn/${iconCode}@2x.png`;
+  };
+
+  const getDayName = (dateStr) => {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-US', { weekday: 'long' });
   };
 
   return (
@@ -383,29 +447,52 @@ function App() {
       {weather && (
         <div className="bg-white/70 p-4 rounded-lg shadow-lg mb-4 w-full max-w-md text-center">
           <h2 className="text-3xl font-semibold">{weather.name}, {weather.sys.country}</h2>
-          <img src={getIconUrl(weather.weather[0].icon)} alt={weather.weather[0].description} className="mx-auto" />
+          <img src={getIconUrl(weather.weather[0].description)} alt={weather.weather[0].description} className="mx-auto" />
           <p className="text-xl">{weather.main.temp}°C</p>
           <p className="capitalize">{weather.weather[0].description}</p>
           <p>Humidity: {weather.main.humidity}%</p>
           <p>Wind: {weather.wind.speed} m/s</p>
-          <button onClick={() => addFavorite(weather.name)} className="mt-2 p-2 bg-green-500 text-white rounded">Add Favorite</button>
+          <p>Local Time: {currentTime}</p>
+          <div className="mt-2 flex justify-center space-x-2">
+            <button onClick={() => addFavorite(weather.name)} className="p-2 bg-green-500 text-white rounded">Add Favorite</button>
+            <button onClick={() => setShowDetails(!showDetails)} className="p-2 bg-blue-500 text-white rounded">See Details</button>
+            <button onClick={() => setShow24hForecast(!show24hForecast)} className="p-2 bg-purple-500 text-white rounded">24h Forecast</button>
+          </div>
+          {showDetails && (
+            <div className="mt-4 p-4 bg-white/80 rounded-lg shadow-lg transition-opacity duration-500 ease-in-out opacity-100" style={{ display: showDetails ? 'block' : 'none' }}>
+              <h3 className="text-2xl font-semibold mb-2">Detailed Weather</h3>
+              <p>Pressure: {weather.main.pressure} hPa</p>
+              <p>Wind Direction: {weather.wind.deg}°</p>
+              <p>Visibility: {(weather.visibility / 1000).toFixed(1)} km</p>
+              <p>Cloudiness: {weather.clouds.all}%</p>
+              <p>Sea Level: {weather.main.sea_level || 'N/A'} hPa</p>
+              <p>Ground Level: {weather.main.grnd_level || 'N/A'} hPa</p>
+              <p>Weather ID: {weather.weather[0].id}</p>
+              <p>Main Weather: {weather.weather[0].main}</p>
+              <p>Icon Code: {weather.weather[0].icon}</p>
+              <p>Sunrise: {new Date(weather.sys.sunrise * 1000).toLocaleTimeString()}</p>
+              <p>Sunset: {new Date(weather.sys.sunset * 1000).toLocaleTimeString()}</p>
+            </div>
+          )}
         </div>
       )}
       {countryWeather && (
         <div className="bg-white/70 p-4 rounded-lg shadow-lg mb-4 w-full max-w-md text-center">
           <h3 className="text-2xl font-semibold">Overall in {country} (Capital: {countryCapitals[country]})</h3>
-          <img src={getIconUrl(countryWeather.weather[0].icon)} alt={countryWeather.weather[0].description} className="mx-auto" />
+          <img src={getIconUrl(countryWeather.weather[0].description)} alt={countryWeather.weather[0].description} className="mx-auto" />
           <p className="text-xl">{countryWeather.main.temp}°C</p>
           <p className="capitalize">{countryWeather.weather[0].description}</p>
         </div>
       )}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4 w-full max-w-5xl">
-        {forecast.map((item, idx) => (
+        {forecast.map((day, idx) => (
           <div key={idx} className="p-4 rounded-lg shadow-lg text-center bg-white/80">
-            <p className="font-bold">{new Date(item.dt * 1000).toLocaleString('en-US', { weekday: 'long', month: 'short', day: 'numeric', hour: 'numeric', minute: 'numeric' })}</p>
-            <img src={getIconUrl(item.weather[0].icon)} alt={item.weather[0].description} className="mx-auto" />
-            <p>{item.main.temp}°C</p>
-            <p className="capitalize">{item.weather[0].description}</p>
+            <p className="font-bold">{getDayName(day.date)}</p> {/* Day name */}
+            <p className="text-sm">{day.date}</p> {/* Date */}
+            <img src={getIconUrl(day.description)} alt={day.description} className="mx-auto" />
+            <p>{day.avgTemp.toFixed(1)}°C</p>
+            <p className="capitalize">{day.description}</p>
+            <p>Humidity: {day.avgHumidity.toFixed(1)}%</p>
           </div>
         ))}
       </div>
@@ -419,6 +506,25 @@ function App() {
             </li>
           ))}
         </ul>
+      </div>
+      {/* Sidebar for 24h Forecast */}
+      <div className={`sidebar ${show24hForecast ? 'open' : 'closed'}`}>
+        <h3 className="text-xl font-semibold mb-2">24-Hour Forecast</h3>
+        <p className="text-sm text-gray-600">Note: Data is provided in 3-hour intervals (up to 8 entries in 24 hours).</p>
+        <div className="mt-2 space-y-2">
+          {hourlyTemps.map((hour, idx) => (
+            <div key={idx} className="flex justify-between p-2 bg-gray-200 rounded">
+              <span>{hour.time}</span>
+              <span>{hour.temp.toFixed(1)}°C</span>
+            </div>
+          ))}
+        </div>
+        <button
+          onClick={() => setShow24hForecast(false)}
+          className="mt-4 p-2 bg-red-500 text-white rounded w-full"
+        >
+          Close
+        </button>
       </div>
     </div>
   );

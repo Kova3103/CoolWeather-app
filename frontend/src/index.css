@@ -37,7 +37,7 @@ body {
   background-position: center;
   position: relative;
   overflow: hidden;
-  animation: starry-night 20s linear infinite;
+  /*animation: starry-night 20s linear infinite;*/
   transition: background-image 1s ease-in-out;
   background-color: #1C2526; /* Fallback for night sky */
 }
@@ -48,7 +48,7 @@ body {
   background-position: center;
   position: relative;
   overflow: hidden;
-  animation: cloudy-move 40s linear infinite;
+  animation: cloudy-move 70s linear infinite;
   transition: background-image 1s ease-in-out;
   background-color: #b3b3b3; /* Fallback */
 }
@@ -180,5 +180,30 @@ div, form, button, input, li, span {
 /* Transition for background change */
 .transition-background {
   transition: background-image 1s ease-in-out;
+}
+
+/* Sidebar styles */
+.sidebar {
+  position: fixed;
+  right: 0;
+  top: 0;
+  height: 50%;
+  width: 300px;
+  background-color: rgba(255, 255, 255, 0.9);
+  padding: 20px;
+  overflow-y: auto;
+  transition: opacity 0.5s ease-in-out;
+  box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);
+  z-index: 10; /* Ensure it stays above other content */
+}
+
+.sidebar.closed {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.sidebar.open {
+  opacity: 1;
+  pointer-events: auto;
 }
 
