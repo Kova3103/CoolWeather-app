@@ -17,8 +17,8 @@ function App() {
   const [isNight, setIsNight] = useState(false);
   const [currentTime, setCurrentTime] = useState('');
   const [showDetails, setShowDetails] = useState(false);
-  const [hourlyTemps, setHourlyTemps] = useState([]); // 24-hour temperature data
-  const [show24hForecast, setShow24hForecast] = useState(false); // <-- This fixes the error
+  const [hourlyTemps, setHourlyTemps] = useState([]);
+  const [show24hForecast, setShow24hForecast] = useState(false);
 
   const countryCapitals = {
     "AF": "Kabul",
@@ -278,7 +278,8 @@ function App() {
       const sunrise = res.data.sys.sunrise;
       const sunset = res.data.sys.sunset;
       const timezoneOffset = res.data.timezone; // In seconds
-      const localTime = new Date((currentTime + timezoneOffset) * 1000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
+      const utcTime = Math.floor(Date.now() / 1000) + (new Date().getTimezoneOffset() * 60);
+      const localTime = new Date((utcTime + timezoneOffset) * 1000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
       setCurrentTime(localTime); // Store current time
       setIsNight(currentTime < sunrise || currentTime > sunset);
       const countryCode = res.data.sys.country;
@@ -307,10 +308,22 @@ function App() {
         const data = dailyForecasts[date];
         const avgTemp = data.tempSum / data.count;
         const avgHumidity = data.humiditySum / data.count;
-        const mostCommonDescription = data.descriptions.sort((a, b) =>
-          data.descriptions.filter(v => v === a).length - data.descriptions.filter(v => v === b).length
-        ).pop(); // Mode of descriptions
-        return { date, avgTemp, avgHumidity, description: mostCommonDescription };
+        // Find the most common description and icon for the day
+        const descriptionCounts = {};
+        const iconCounts = {};
+        forecastList.forEach(item => {
+          const itemDate = new Date(item.dt * 1000).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
+          if (itemDate === date) {
+            const desc = item.weather[0].description;
+            const icon = item.weather[0].icon;
+            descriptionCounts[desc] = (descriptionCounts[desc] || 0) + 1;
+            iconCounts[icon] = (iconCounts[icon] || 0) + 1;
+          }
+        });
+        // Get most common description and icon
+        const mostCommonDescription = Object.entries(descriptionCounts).sort((a, b) => b[1] - a[1])[0][0];
+        const mostCommonIcon = Object.entries(iconCounts).sort((a, b) => b[1] - a[1])[0][0];
+        return { date, avgTemp, avgHumidity, description: mostCommonDescription, icon: mostCommonIcon };
       });
       setForecast(averagedForecasts);
       // Extract next 24 hours of temperature data (approx. 8 entries at 3-hour intervals)
@@ -407,26 +420,25 @@ function App() {
     return 'clear';
   };
 
-  const getIconUrl = (description) => {
-    // Map description to a representative icon (simplified mapping)
-    const weatherMap = {
-      'clear sky': '01d',
-      'few clouds': '02d',
-      'scattered clouds': '03d',
-      'broken clouds': '04d',
-      'shower rain': '09d',
-      'rain': '10d',
-      'thunderstorm': '11d',
-      'snow': '13d',
-      'mist': '50d'
-    };
-    const iconCode = weatherMap[description.toLowerCase()] || '01d'; // Default to clear sky
-    return `http://openweathermap.org/img/wn/${iconCode}@2x.png`;
+  const getIconUrl = (icon) => {
+    // Always use the OpenWeatherMap icon code if available
+    if (icon) {
+      return `http://openweathermap.org/img/wn/${icon}@2x.png`;
+    }
+    // Fallback icon
+    return `http://openweathermap.org/img/wn/01d@2x.png`;
   };
 
   const getDayName = (dateStr) => {
     const date = new Date(dateStr);
     return date.toLocaleDateString('en-US', { weekday: 'long' });
+  };
+
+  const handleSeeOnMap = () => {
+    if (weather) {
+      const url = `https://www.google.com/maps/search/?api=1&query=${weather.name},${weather.sys.country}`;
+      window.open(url, '_blank');
+    }
   };
 
   return (
@@ -447,17 +459,23 @@ function App() {
       {weather && (
         <div className="bg-white/70 p-4 rounded-lg shadow-lg mb-4 w-full max-w-md text-center">
           <h2 className="text-3xl font-semibold">{weather.name}, {weather.sys.country}</h2>
-          <img src={getIconUrl(weather.weather[0].description)} alt={weather.weather[0].description} className="mx-auto" />
+          <img
+            src={getIconUrl(weather.weather[0].icon)}
+            alt={weather.weather[0].description}
+            className="mx-auto"
+          />
           <p className="text-xl">{weather.main.temp}°C</p>
           <p className="capitalize">{weather.weather[0].description}</p>
           <p>Humidity: {weather.main.humidity}%</p>
           <p>Wind: {weather.wind.speed} m/s</p>
           <p>Local Time: {currentTime}</p>
+          {/* Center the buttons using flex and justify-center */}
           <div className="mt-2 flex justify-center space-x-2">
             <button onClick={() => addFavorite(weather.name)} className="p-2 bg-green-500 text-white rounded">Add Favorite</button>
             <button onClick={() => setShowDetails(!showDetails)} className="p-2 bg-blue-500 text-white rounded">See Details</button>
             <button onClick={() => setShow24hForecast(!show24hForecast)} className="p-2 bg-purple-500 text-white rounded">24h Forecast</button>
           </div>
+          <button onClick={handleSeeOnMap} className="mt-2 p-2 bg-yellow-500 text-white rounded">See on Map</button>
           {showDetails && (
             <div className="mt-4 p-4 bg-white/80 rounded-lg shadow-lg transition-opacity duration-500 ease-in-out opacity-100" style={{ display: showDetails ? 'block' : 'none' }}>
               <h3 className="text-2xl font-semibold mb-2">Detailed Weather</h3>
@@ -472,6 +490,9 @@ function App() {
               <p>Icon Code: {weather.weather[0].icon}</p>
               <p>Sunrise: {new Date(weather.sys.sunrise * 1000).toLocaleTimeString()}</p>
               <p>Sunset: {new Date(weather.sys.sunset * 1000).toLocaleTimeString()}</p>
+              <p>Feels Like: {weather.main.feels_like}°C</p>
+              <p>Min Temp: {weather.main.temp_min}°C</p>
+              <p>Max Temp: {weather.main.temp_max}°C</p>
             </div>
           )}
         </div>
@@ -479,7 +500,11 @@ function App() {
       {countryWeather && (
         <div className="bg-white/70 p-4 rounded-lg shadow-lg mb-4 w-full max-w-md text-center">
           <h3 className="text-2xl font-semibold">Overall in {country} (Capital: {countryCapitals[country]})</h3>
-          <img src={getIconUrl(countryWeather.weather[0].description)} alt={countryWeather.weather[0].description} className="mx-auto" />
+          <img
+            src={getIconUrl(countryWeather.weather[0].icon)}
+            alt={countryWeather.weather[0].description}
+            className="mx-auto"
+          />
           <p className="text-xl">{countryWeather.main.temp}°C</p>
           <p className="capitalize">{countryWeather.weather[0].description}</p>
         </div>
@@ -487,9 +512,13 @@ function App() {
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4 w-full max-w-5xl">
         {forecast.map((day, idx) => (
           <div key={idx} className="p-4 rounded-lg shadow-lg text-center bg-white/80">
-            <p className="font-bold">{getDayName(day.date)}</p> {/* Day name */}
-            <p className="text-sm">{day.date}</p> {/* Date */}
-            <img src={getIconUrl(day.description)} alt={day.description} className="mx-auto" />
+            <p className="font-bold">{getDayName(day.date)}</p>
+            <p className="text-sm">{day.date}</p>
+            <img
+              src={getIconUrl(day.icon)}
+              alt={day.description}
+              className="mx-auto"
+            />
             <p>{day.avgTemp.toFixed(1)}°C</p>
             <p className="capitalize">{day.description}</p>
             <p>Humidity: {day.avgHumidity.toFixed(1)}%</p>
@@ -515,7 +544,17 @@ function App() {
           {hourlyTemps.map((hour, idx) => (
             <div key={idx} className="flex justify-between p-2 bg-gray-200 rounded">
               <span>{hour.time}</span>
-              <span>{hour.temp.toFixed(1)}°C</span>
+              <span>
+                {hour.temp.toFixed(1)}°C
+                {hour.icon && (
+                  <img
+                    src={getIconUrl(hour.icon)}
+                    alt=""
+                    className="inline-block ml-2"
+                    style={{ width: 32, height: 32 }}
+                  />
+                )}
+              </span>
             </div>
           ))}
         </div>

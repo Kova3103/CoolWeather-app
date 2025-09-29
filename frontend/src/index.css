@@ -119,6 +119,12 @@ body {
   background-color: #87CEEB; /* Fallback */
 }
 
+/* Add this to make the five forecast panels a bit darker */
+.bg-white\/80 {
+  background-color: rgba(222, 219, 219, 0.74); /* dark slate with 85% opacity */
+  color: #1e1d1d; /* ensure text is readable */
+}
+
 /* Animations for real effects */
 @keyframes sunny-glow {
   0%, 100% { filter: brightness(1); }
