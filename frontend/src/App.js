@@ -1,287 +1,67 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import './index.css';
+import countryCapitals from './data/countryCapitals';
 
 /**
- * Main component for CoolWeather app.
+ * Main component for the CoolWeather app.
+ * Handles weather fetching, favorites management, and UI rendering.
  */
 function App() {
+  // State for current weather data
   const [weather, setWeather] = useState(null);
+  // State for 5-day forecast data, averaged per day
   const [forecast, setForecast] = useState([]);
+  // State for list of favorite cities
   const [favorites, setFavorites] = useState([]);
+  // State for user-input city search
   const [city, setCity] = useState('');
+  // State to indicate loading status
   const [loading, setLoading] = useState(false);
+  // State for error messages
   const [error, setError] = useState(null);
+  // State for country code of the current city
   const [country, setCountry] = useState(null);
+  // State for weather data of the country's capital
   const [countryWeather, setCountryWeather] = useState(null);
+  // State to determine if it's nighttime based on sunrise/sunset
   const [isNight, setIsNight] = useState(false);
+  // State for formatted local time in the city's timezone
   const [currentTime, setCurrentTime] = useState('');
+  // State to toggle detailed weather view
   const [showDetails, setShowDetails] = useState(false);
+  // State for hourly temperature data for the next 24 hours
   const [hourlyTemps, setHourlyTemps] = useState([]);
+  // State to toggle 24-hour forecast sidebar
   const [show24hForecast, setShow24hForecast] = useState(false);
 
-  const countryCapitals = {
-    "AF": "Kabul",
-    "AL": "Tirana",
-    "DZ": "Algiers",
-    "AS": "Pago Pago",
-    "AD": "Andorra la Vella",
-    "AO": "Luanda",
-    "AI": "The Valley",
-    "AG": "Saint John's",
-    "AR": "Buenos Aires",
-    "AM": "Yerevan",
-    "AW": "Oranjestad",
-    "AU": "Canberra",
-    "AT": "Vienna",
-    "AZ": "Baku",
-    "BS": "Nassau",
-    "BH": "Manama",
-    "BD": "Dhaka",
-    "BB": "Bridgetown",
-    "BY": "Minsk",
-    "BE": "Brussels",
-    "BZ": "Belmopan",
-    "BJ": "Porto-Novo",
-    "BM": "Hamilton",
-    "BT": "Thimphu",
-    "BO": "Sucre",
-    "BQ": "Kralendijk",
-    "BA": "Sarajevo",
-    "BW": "Gaborone",
-    "BV": "Bouvet Island",
-    "BR": "Brasília",
-    "IO": "Diego Garcia",
-    "BN": "Bandar Seri Begawan",
-    "BG": "Sofia",
-    "BF": "Ouagadougou",
-    "BI": "Bujumbura",
-    "CV": "Praia",
-    "KH": "Phnom Penh",
-    "CM": "Yaoundé",
-    "CA": "Ottawa",
-    "KY": "George Town",
-    "CF": "Bangui",
-    "TD": "N'Djamena",
-    "CL": "Santiago",
-    "CN": "Beijing",
-    "CX": "Flying Fish Cove",
-    "CC": "West Island",
-    "CO": "Bogotá",
-    "KM": "Moroni",
-    "CD": "Kinshasa",
-    "CG": "Brazzaville",
-    "CK": "Avarua",
-    "CR": "San José",
-    "HR": "Zagreb",
-    "CU": "Havana",
-    "CW": "Willemstad",
-    "CY": "Nicosia",
-    "CZ": "Prague",
-    "DK": "Copenhagen",
-    "DJ": "Djibouti",
-    "DM": "Roseau",
-    "DO": "Santo Domingo",
-    "EC": "Quito",
-    "EG": "Cairo",
-    "SV": "San Salvador",
-    "GQ": "Malabo",
-    "ER": "Asmara",
-    "EE": "Tallinn",
-    "SZ": "Mbabane",
-    "ET": "Addis Ababa",
-    "FK": "Stanley",
-    "FO": "Tórshavn",
-    "FJ": "Suva",
-    "FI": "Helsinki",
-    "FR": "Paris",
-    "GF": "Cayenne",
-    "PF": "Papeetē",
-    "TF": "Port-aux-Français",
-    "GA": "Libreville",
-    "GM": "Banjul",
-    "GE": "Tbilisi",
-    "DE": "Berlin",
-    "GH": "Accra",
-    "GI": "Gibraltar",
-    "GR": "Athens",
-    "GL": "Nuuk",
-    "GD": "St. George's",
-    "GP": "Basse-Terre",
-    "GU": "Hagåtña",
-    "GT": "Guatemala City",
-    "GG": "St. Peter Port",
-    "GN": "Conakry",
-    "GW": "Bissau",
-    "GY": "Georgetown",
-    "HT": "Port-au-Prince",
-    "HM": "Heard Island and McDonald Islands",
-    "VA": "Vatican City",
-    "HN": "Tegucigalpa",
-    "HK": "Hong Kong",
-    "HU": "Budapest",
-    "IS": "Reykjavík",
-    "IN": "New Delhi",
-    "ID": "Jakarta",
-    "IR": "Tehran",
-    "IQ": "Baghdad",
-    "IE": "Dublin",
-    "IM": "Douglas",
-    "IL": "Jerusalem",
-    "IT": "Rome",
-    "JM": "Kingston",
-    "JP": "Tokyo",
-    "JE": "Saint Helier",
-    "JO": "Amman",
-    "KZ": "Nur-Sultan",
-    "KE": "Nairobi",
-    "KI": "South Tarawa",
-    "KP": "Pyongyang",
-    "KR": "Seoul",
-    "KW": "Kuwait City",
-    "KG": "Bishkek",
-    "LA": "Vientiane",
-    "LV": "Riga",
-    "LB": "Beirut",
-    "LS": "Maseru",
-    "LR": "Monrovia",
-    "LY": "Tripoli",
-    "LI": "Vaduz",
-    "LT": "Vilnius",
-    "LU": "Luxembourg",
-    "MO": "Macao",
-    "MK": "Skopje",
-    "MG": "Antananarivo",
-    "MW": "Lilongwe",
-    "MY": "Kuala Lumpur",
-    "MV": "Malé",
-    "ML": "Bamako",
-    "MT": "Valletta",
-    "MH": "Majuro",
-    "MQ": "Fort-de-France",
-    "MR": "Nouakchott",
-    "MU": "Port Louis",
-    "YT": "Mamoudzou",
-    "MX": "Mexico City",
-    "FM": "Palikir",
-    "MD": "Chișinău",
-    "MC": "Monaco",
-    "MN": "Ulan Bator",
-    "ME": "Podgorica",
-    "MS": "Plymouth",
-    "MA": "Rabat",
-    "MZ": "Maputo",
-    "MM": "Naypyidaw",
-    "NA": "Windhoek",
-    "NR": "Yaren",
-    "NP": "Kathmandu",
-    "NL": "Amsterdam",
-    "NC": "Nouméa",
-    "NZ": "Wellington",
-    "NI": "Managua",
-    "NE": "Niamey",
-    "NG": "Abuja",
-    "NU": "Alofi",
-    "NF": "Kingston",
-    "NO": "Oslo",
-    "OM": "Muscat",
-    "PK": "Islamabad",
-    "PW": "Ngerulmud",
-    "PS": "Ramallah",
-    "PA": "Panama City",
-    "PG": "Port Moresby",
-    "PY": "Asunción",
-    "PE": "Lima",
-    "PH": "Manila",
-    "PN": "Adamstown",
-    "PL": "Warsaw",
-    "PT": "Lisbon",
-    "PR": "San Juan",
-    "QA": "Doha",
-    "RE": "Saint-Denis",
-    "RO": "Bucharest",
-    "RU": "Moscow",
-    "RW": "Kigali",
-    "BL": "Gustavia",
-    "SH": "Jamestown",
-    "KN": "Basseterre",
-    "LC": "Castries",
-    "MF": "Marigot",
-    "PM": "Saint-Pierre",
-    "VC": "Kingstown",
-    "WS": "Apia",
-    "SM": "San Marino",
-    "ST": "São Tomé",
-    "SA": "Riyadh",
-    "SN": "Dakar",
-    "RS": "Belgrade",
-    "SC": "Victoria",
-    "SL": "Freetown",
-    "SG": "Singapore",
-    "SX": "Philipsburg",
-    "SK": "Bratislava",
-    "SI": "Ljubljana",
-    "SB": "Honiara",
-    "SO": "Mogadishu",
-    "ZA": "Pretoria",
-    "GS": "Grytviken",
-    "SS": "Juba",
-    "ES": "Madrid",
-    "LK": "Sri Jayawardenepura Kotte",
-    "SD": "Khartoum",
-    "SR": "Paramaribo",
-    "SJ": "Longyearbyen",
-    "SE": "Stockholm",
-    "CH": "Bern",
-    "SY": "Damascus",
-    "TW": "Taipei",
-    "TJ": "Dushanbe",
-    "TZ": "Dodoma",
-    "TH": "Bangkok",
-    "TL": "Dili",
-    "TG": "Lomé",
-    "TK": "Fakaofo",
-    "TO": "Nuku'alofa",
-    "TT": "Port of Spain",
-    "TN": "Tunis",
-    "TR": "Ankara",
-    "TM": "Ashgabat",
-    "TC": "Cockburn Town",
-    "TV": "Funafuti",
-    "UG": "Kampala",
-    "UA": "Kyiv",
-    "AE": "Abu Dhabi",
-    "GB": "London",
-    "US": "Washington, D.C.",
-    "UY": "Montevideo",
-    "UZ": "Tashkent",
-    "VU": "Port Vila",
-    "VE": "Caracas",
-    "VN": "Hanoi",
-    "VG": "Road Town",
-    "VI": "Charlotte Amalie",
-    "WF": "Mata-Utu",
-    "EH": "El Aaiún",
-    "YE": "Sana'a",
-    "ZM": "Lusaka",
-    "ZW": "Harare"
-  };
-
+  /**
+   * Fetches weather and forecast data for a given city.
+   * Also fetches weather for the country's capital and processes forecast data.
+   * @param {string} searchCity - The city to fetch weather for.
+   */
   const fetchWeather = async (searchCity) => {
     setLoading(true);
     setError(null);
     try {
       console.log(`Fetching weather for ${searchCity}`); // Debug log
+      // Fetch current weather data
       const res = await axios.get(`http://localhost:8080/api/weather/${searchCity}`);
       setWeather(res.data);
+
+      // Calculate if it's night based on sunrise/sunset times
       const currentTime = Math.floor(Date.now() / 1000);
       const sunrise = res.data.sys.sunrise;
       const sunset = res.data.sys.sunset;
+      setIsNight(currentTime < sunrise || currentTime > sunset);
+
+      // Calculate local time adjusted for timezone
       const timezoneOffset = res.data.timezone; // In seconds
       const utcTime = Math.floor(Date.now() / 1000) + (new Date().getTimezoneOffset() * 60);
       const localTime = new Date((utcTime + timezoneOffset) * 1000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
       setCurrentTime(localTime); // Store current time
-      setIsNight(currentTime < sunrise || currentTime > sunset);
+      
+      // Get country code and fetch capital's weather if available
       const countryCode = res.data.sys.country;
       setCountry(countryCode);
       const capital = countryCapitals[countryCode];
@@ -289,8 +69,11 @@ function App() {
         const countryRes = await axios.get(`http://localhost:8080/api/weather/${capital}`);
         setCountryWeather(countryRes.data);
       }
+
+      // Fetch 5-day forecast data
       const forecastRes = await axios.get(`http://localhost:8080/api/forecast/${searchCity}`);
       const forecastList = forecastRes.data.list;
+
       // Group by day and calculate averages
       const dailyForecasts = {};
       forecastList.forEach(item => {
@@ -303,11 +86,13 @@ function App() {
         dailyForecasts[date].count += 1;
         dailyForecasts[date].descriptions.push(item.weather[0].description);
       });
-      // Take the first 5 days' averages
+
+      // Process averaged forecasts for the first 5 days
       const averagedForecasts = Object.keys(dailyForecasts).slice(0, 5).map(date => {
         const data = dailyForecasts[date];
         const avgTemp = data.tempSum / data.count;
         const avgHumidity = data.humiditySum / data.count;
+
         // Find the most common description and icon for the day
         const descriptionCounts = {};
         const iconCounts = {};
@@ -326,7 +111,8 @@ function App() {
         return { date, avgTemp, avgHumidity, description: mostCommonDescription, icon: mostCommonIcon };
       });
       setForecast(averagedForecasts);
-      // Extract next 24 hours of temperature data (approx. 8 entries at 3-hour intervals)
+
+      // Extract next 24 hours of temperature data (3-hour intervals)
       const now = Math.floor(Date.now() / 1000);
       const next24Hours = forecastList.filter(item => item.dt >= now && item.dt <= now + 24 * 3600);
       setHourlyTemps(next24Hours.map(item => ({
@@ -341,24 +127,35 @@ function App() {
     }
   };
 
+  /**
+   * Adds a city to the favorites list via API.
+   * @param {string} favCity - The city to add as a favorite.
+   */
   const addFavorite = async (favCity) => {
     try {
       await axios.post('http://localhost:8080/api/favorites', { city: favCity });
-      loadFavorites();
+      loadFavorites(); // Reload favorites after adding
     } catch (err) {
       setError('Error adding favorite: ' + (err.response ? err.response.data : err.message));
     }
   };
 
+  /**
+   * Removes a city from the favorites list via API.
+   * @param {string} favCity - The city to remove from favorites.
+   */
   const removeFavorite = async (favCity) => {
     try {
       await axios.delete(`http://localhost:8080/api/favorites/${favCity}`);
-      loadFavorites();
+      loadFavorites(); // Reload favorites after removal
     } catch (err) {
       setError('Error removing favorite: ' + (err.response ? err.response.data : err.message));
     }
   };
 
+  /**
+   * Loads the list of favorite cities from the API.
+   */
   const loadFavorites = async () => {
     try {
       const res = await axios.get('http://localhost:8080/api/favorites');
@@ -368,12 +165,16 @@ function App() {
     }
   };
 
+  // Effect to load initial data: favorites and geolocation-based weather
   useEffect(() => {
     setLoading(true);
-    loadFavorites();
+    loadFavorites(); // Load favorites on mount
+    
+    // Get user's current location
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         console.log("Geolocation coordinates:", pos.coords); // Debug log
+        // Reverse geocode to get city name
         axios.get(`http://localhost:8080/api/reverse?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}`)
           .then((geoRes) => {
             let localCity = geoRes.data;
@@ -388,28 +189,37 @@ function App() {
           .catch((err) => {
             console.error("Geolocation reverse error:", err);
             setError('Geolocation error: ' + err.message);
-            fetchWeather('London');
+            fetchWeather('London'); // Fallback to default city
           });
       },
       (err) => {
         console.error("Geolocation error:", err);
         setError('Geolocation error: ' + err.message);
-        fetchWeather('London');
+        fetchWeather('London'); // Fallback to default city on geolocation failure
       }
     );
-  }, []);
-
+  }, []); // Empty dependency array: runs once on mount
+  
+  /**
+   * Handles city search form submission.
+   * @param {Event} e - The form submission event.
+   */
   const handleSearch = (e) => {
     e.preventDefault();
     if (city.trim()) {
       console.log("Searching for city:", city); // Debug log
       fetchWeather(city);
-      setCity('');
+      setCity(''); // Clear input after search
     } else {
       setError('Please enter a city name.');
     }
   };
 
+  /**
+   * Determines the background CSS class based on weather condition.
+   * @param {string} condition - The main weather condition (e.g., 'Rain', 'Clear').
+   * @returns {string} - The corresponding CSS class.
+   */
   const getBackgroundClass = (condition) => {
     if (!condition) return 'clear';
     const code = condition.toLowerCase();
@@ -417,9 +227,14 @@ function App() {
     if (code.includes('cloud')) return 'cloudy';
     if (code.includes('snow')) return 'snowy';
     if (code.includes('clear')) return 'sunny';
-    return 'clear';
+    return 'clear'; // Default fallback
   };
 
+  /**
+   * Gets the URL for the weather icon from OpenWeatherMap.
+   * @param {string} icon - The icon code from API.
+   * @returns {string} - The full icon URL.
+   */
   const getIconUrl = (icon) => {
     // Always use the OpenWeatherMap icon code if available
     if (icon) {
@@ -429,21 +244,31 @@ function App() {
     return `http://openweathermap.org/img/wn/01d@2x.png`;
   };
 
+  /**
+   * Gets the full day name from a date string.
+   * @param {string} dateStr - The date string in 'YYYY-MM-DD' format.
+   * @returns {string} - The weekday name (e.g., 'Monday').
+   */
   const getDayName = (dateStr) => {
     const date = new Date(dateStr);
     return date.toLocaleDateString('en-US', { weekday: 'long' });
   };
 
+  /**
+   * Opens Google Maps for the current city's location.
+   */
   const handleSeeOnMap = () => {
     if (weather) {
       const url = `https://www.google.com/maps/search/?api=1&query=${weather.name},${weather.sys.country}`;
-      window.open(url, '_blank');
+      window.open(url, '_blank'); // Open in new tab
     }
   };
 
+  // Render the main UI
   return (
     <div className={`min-h-screen flex flex-col items-center p-4 transition-background duration-1000 ease-in-out ${getBackgroundClass(weather?.weather[0].main)} ${isNight ? 'night' : 'day'}`}>
       <h1 className="text-4xl title-font mb-4 text-white">CoolWeather</h1>
+      {/* Search form */}
       <form onSubmit={handleSearch} className="mb-4 w-full max-w-md">
         <input
           type="text"
@@ -456,6 +281,7 @@ function App() {
       </form>
       {loading && <p className="text-white">Loading...</p>}
       {error && <p className="text-red-300 mb-4">{error}</p>}
+      {/* Current weather display */}
       {weather && (
         <div className="bg-white/70 p-4 rounded-lg shadow-lg mb-4 w-full max-w-md text-center">
           <h2 className="text-3xl font-semibold">{weather.name}, {weather.sys.country}</h2>
@@ -469,13 +295,14 @@ function App() {
           <p>Humidity: {weather.main.humidity}%</p>
           <p>Wind: {weather.wind.speed} m/s</p>
           <p>Local Time: {currentTime}</p>
-          {/* Center the buttons using flex and justify-center */}
+          {/* Action buttons */}
           <div className="mt-2 flex justify-center space-x-2">
             <button onClick={() => addFavorite(weather.name)} className="p-2 bg-green-500 text-white rounded">Add Favorite</button>
             <button onClick={() => setShowDetails(!showDetails)} className="p-2 bg-blue-500 text-white rounded">See Details</button>
             <button onClick={() => setShow24hForecast(!show24hForecast)} className="p-2 bg-purple-500 text-white rounded">24h Forecast</button>
           </div>
           <button onClick={handleSeeOnMap} className="mt-2 p-2 bg-yellow-500 text-white rounded">See on Map</button>
+          {/* Detailed weather section (toggleable) */}
           {showDetails && (
             <div className="mt-4 p-4 bg-white/80 rounded-lg shadow-lg transition-opacity duration-500 ease-in-out opacity-100" style={{ display: showDetails ? 'block' : 'none' }}>
               <h3 className="text-2xl font-semibold mb-2">Detailed Weather</h3>
@@ -485,9 +312,6 @@ function App() {
               <p>Cloudiness: {weather.clouds.all}%</p>
               <p>Sea Level: {weather.main.sea_level || 'N/A'} hPa</p>
               <p>Ground Level: {weather.main.grnd_level || 'N/A'} hPa</p>
-              <p>Weather ID: {weather.weather[0].id}</p>
-              <p>Main Weather: {weather.weather[0].main}</p>
-              <p>Icon Code: {weather.weather[0].icon}</p>
               <p>Sunrise: {new Date(weather.sys.sunrise * 1000).toLocaleTimeString()}</p>
               <p>Sunset: {new Date(weather.sys.sunset * 1000).toLocaleTimeString()}</p>
               <p>Feels Like: {weather.main.feels_like}°C</p>
@@ -497,6 +321,7 @@ function App() {
           )}
         </div>
       )}
+      {/* Country capital weather display */}
       {countryWeather && (
         <div className="bg-white/70 p-4 rounded-lg shadow-lg mb-4 w-full max-w-md text-center">
           <h3 className="text-2xl font-semibold">Overall in {country} (Capital: {countryCapitals[country]})</h3>
@@ -509,6 +334,7 @@ function App() {
           <p className="capitalize">{countryWeather.weather[0].description}</p>
         </div>
       )}
+      {/* 5-day forecast grid */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4 w-full max-w-5xl">
         {forecast.map((day, idx) => (
           <div key={idx} className="p-4 rounded-lg shadow-lg text-center bg-white/80">
@@ -525,6 +351,7 @@ function App() {
           </div>
         ))}
       </div>
+      {/* Favorites list */}
       <div className="bg-white/70 p-4 rounded-lg shadow-lg w-full max-w-md">
         <h3 className="text-2xl mb-2">Favorites</h3>
         <ul className="list-disc pl-4">
@@ -536,7 +363,7 @@ function App() {
           ))}
         </ul>
       </div>
-      {/* Sidebar for 24h Forecast */}
+      {/* 24-hour forecast sidebar (toggleable) */}
       <div className={`sidebar ${show24hForecast ? 'open' : 'closed'}`}>
         <h3 className="text-xl font-semibold mb-2">24-Hour Forecast</h3>
         <p className="text-sm text-gray-600">Note: Data is provided in 3-hour intervals (up to 8 entries in 24 hours).</p>

@@ -2,17 +2,17 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Import pretty and chill font from Google Fonts */
+/* Import a decorative font from Google Fonts for titles */
 @import url('https://fonts.googleapis.com/css2?family=Pacifico&display=swap');
 
-/* Apple-like font and smoothing */
+/* Set default font stack for the body */
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Pretty chill title font with fallback */
+/* Define a custom class for title font with a chill, cursive style and subtle shadow for better readability */
 .title-font {
   font-family: 'Pacifico', cursive, Arial, sans-serif;
   font-weight: 400;
@@ -20,6 +20,8 @@ body {
 }
 
 /* High-quality background images with fallback gradients */
+
+/* Sunny day background: Uses a beach image with glow animation and sky blue fallback */
 .sunny.day {
   background-image: url('https://images.unsplash.com/photo-1507525428034-b723cf961d3e?ixlib=rb-4.0.3&auto=format&fit=crop&w=1935&q=80');
   background-size: cover;
@@ -31,6 +33,7 @@ body {
   background-color: #87CEEB; /* Fallback gradient */
 }
 
+/* Sunny night background: Starry sky image with dark fallback */
 .sunny.night {
   background-image: url(https://images.unsplash.com/photo-1470813740244-df37b8c1edcb?ixlib=rb-4.0.3&auto=format&fit=crop&w=1935&q=80);
   background-size: cover;
@@ -42,6 +45,7 @@ body {
   background-color: #1C2526; /* Fallback for night sky */
 }
 
+/* Cloudy day background: Cloudy landscape with movement animation and gray fallback */
 .cloudy.day {
   background-image: url('https://images.pexels.com/photos/2114014/pexels-photo-2114014.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1');
   background-size: cover;
@@ -53,6 +57,7 @@ body {
   background-color: #b3b3b3; /* Fallback */
 }
 
+/* Cloudy night background: Night clouds with faster movement and darker gray fallback */
 .cloudy.night {
   background-image: url('https://images.pexels.com/photos/414144/pexels-photo-414144.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1');
   background-size: cover;
@@ -64,6 +69,7 @@ body {
   background-color: #4d4d4d; /* Fallback */
 }
 
+/* Rainy day background: Rainy scene with falling rain animation and dark gray fallback */
 .rainy.day {
   background-image: url('https://images.pexels.com/photos/125510/pexels-photo-125510.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1');
   background-size: cover;
@@ -75,6 +81,7 @@ body {
   background-color: #4d4d4d; /* Fallback */
 }
 
+/* Rainy night background: Night rain with the same animation and slate fallback */
 .rainy.night {
   background-image: url('https://images.pexels.com/photos/459451/pexels-photo-459451.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1');
   background-size: cover;
@@ -86,6 +93,7 @@ body {
   background-color: #2f4f4f; /* Fallback */
 }
 
+/* Snowy day background: Snowy landscape with falling snow animation and light gray fallback */
 .snowy.day {
   background-image: url('https://images.pexels.com/photos/235621/pexels-photo-235621.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1');
   background-size: cover;
@@ -97,6 +105,7 @@ body {
   background-color: #e6e6e6; /* Fallback */
 }
 
+/* Snowy night background: Night snow with the same animation and slightly darker fallback */
 .snowy.night {
   background-image: url('https://images.pexels.com/photos/730256/pexels-photo-730256.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1');
   background-size: cover;
@@ -108,6 +117,7 @@ body {
   background-color: #d3d3d3; /* Fallback */
 }
 
+/* Clear weather background: Default clear sky with glow animation and sky blue fallback */
 .clear {
   background-image: url(https://images.unsplash.com/photo-1592210454359-9043f067919b);
   background-size: cover;
@@ -119,49 +129,58 @@ body {
   background-color: #87CEEB; /* Fallback */
 }
 
-/* Add this to make the five forecast panels a bit darker */
+/* Adjust forecast panels to have a slightly darker, semi-transparent background for better contrast */
 .bg-white\/80 {
   background-color: rgba(222, 219, 219, 0.74); /* dark slate with 85% opacity */
   color: #1e1d1d; /* ensure text is readable */
 }
 
-/* Animations for real effects */
+/* Define animations for dynamic weather effects */
+
+/* Sunny glow: Pulsates brightness for a sunny effect */
 @keyframes sunny-glow {
   0%, 100% { filter: brightness(1); }
   50% { filter: brightness(1.1); }
 }
 
+/* Starry night: Subtle vertical movement for twinkling stars (currently commented out) */
 @keyframes starry-night {
   0% { background-position: 0 0; }
   100% { background-position: 0 -50px; } /* Subtle star twinkle */
 }
 
+/* Cloudy movement: Horizontal shift to simulate moving clouds */
 @keyframes cloudy-move {
   0% { background-position: 0 0; }
   100% { background-position: -100px 0; }
 }
 
+/* Rain fall: Vertical movement to simulate falling rain */
 @keyframes rain-fall {
   0% { background-position: 0 -100%; }
   100% { background-position: 0 0; }
 }
 
+/* Snow fall: Vertical movement to simulate falling snow */
 @keyframes snow-fall {
   0% { background-position: 0 -100%; }
   100% { background-position: 0 100%; }
 }
 
-/* Day/Night tones (avoid affecting icons) */
+/* Day and night tone adjustments (applied to the whole container, but avoid affecting icons) */
+
+/* Day mode: Slightly brighter for daytime feel */
 .day {
   filter: brightness(1.1); /* Lighter for day */
 }
 
+/* Night mode: Slightly darker for nighttime feel */
 .night {
   filter: brightness(0.9); /* Darker for night */
   
 }
 
-/* Forecast card styles (slightly transparent, rounded, shadow like Apple) */
+/* Forecast card styles (slightly transparent, rounded) */
 .shadow-lg {
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
@@ -188,7 +207,9 @@ div, form, button, input, li, span {
   transition: background-image 1s ease-in-out;
 }
 
-/* Sidebar styles */
+/* Styles for the 24-hour forecast sidebar */
+
+/* Base sidebar: Fixed position on the right, semi-transparent, with scroll and shadow */
 .sidebar {
   position: fixed;
   right: 0;
@@ -203,11 +224,13 @@ div, form, button, input, li, span {
   z-index: 10; /* Ensure it stays above other content */
 }
 
+/* Closed state: Hidden and non-interactive */
 .sidebar.closed {
   opacity: 0;
   pointer-events: none;
 }
 
+/* Open state: Visible and interactive */
 .sidebar.open {
   opacity: 1;
   pointer-events: auto;
