@@ -15,11 +15,11 @@ Open two Powershell terminals and run this code to clone the repository and navi
 + git clone https://github.com/Kova3103/CoolWeather-app.git
 + cd CoolWeather-app
 
-In one terminal setup the backend:
+In one terminal run this code to setup the backend:
 + cd backend
 + mvn clean install
 
-In other terminal setup the frontend:
+In other terminal run this code to setup the frontend:
 + cd frontend 
 + npm install
 
@@ -31,15 +31,14 @@ Run this code: mvn spring-boot:run
 Run this code: 
 + npm start
 
-You might get this error message (due to powershell being set to restrictive to prevent malicious npm calls): npm : File C:\Program Files\nodejs\npm.ps1 cannot be loaded because running scripts is disabled on this system. For more information, see 
+You might get this error message (due to powershell being set to restrictive to prevent malicious npm calls): 
++ npm : File C:\Program Files\nodejs\npm.ps1 cannot be loaded because running scripts is disabled on this system. For more information, see 
 about_Execution_Policies at https:/go.microsoft.com/fwlink/?LinkID=135170.
 At line:1 char:1
-+ npm start
-+ ~~~
-    + CategoryInfo          : SecurityError: (:) [], PSSecurityException
-    + FullyQualifiedErrorId : UnauthorizedAccess
+
 
 Our node.js npm call is not malicious so to prevent this issue run this code: Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 Then once again run: 
 + npm start
+
 The frontend will automatically go to port 3001 as 3000 is already in use so just confirm it with "Y"
