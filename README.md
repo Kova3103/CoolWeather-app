@@ -25,7 +25,8 @@ In other terminal run this code to setup the frontend:
 
 
 ## How to run backend:
-Run this code: mvn spring-boot:run
+Run this code:
++ mvn spring-boot:run
 
 ## How to run frontend:
 Run this code: 
