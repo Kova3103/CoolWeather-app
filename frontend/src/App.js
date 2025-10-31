@@ -10,7 +10,7 @@ import countryCapitals from './data/countryCapitals';
 function App() {
   // State for current weather data
   const [weather, setWeather] = useState(null);
-  // State for 5-day forecast data, averaged per day
+  // State for 5-day forecast data, averaged per day (starting from tomorrow)
   const [forecast, setForecast] = useState([]);
   // State for list of favorite cities
   const [favorites, setFavorites] = useState([]);
@@ -34,6 +34,9 @@ function App() {
   const [hourlyTemps, setHourlyTemps] = useState([]);
   // State to toggle 24-hour forecast sidebar
   const [show24hForecast, setShow24hForecast] = useState(false);
+  // State for actual daily min and max temps for current day (00:00-23:59)
+  const [dailyMinTemp, setDailyMinTemp] = useState(null);
+  const [dailyMaxTemp, setDailyMaxTemp] = useState(null);
 
   /**
    * Fetches weather and forecast data for a given city.
@@ -44,23 +47,23 @@ function App() {
     setLoading(true);
     setError(null);
     try {
-      console.log(`Fetching weather for ${searchCity}`); // Debug log
+      console.log(`Fetching weather for ${searchCity}`); // Debug log for tracking API calls
       // Fetch current weather data
       const res = await axios.get(`http://localhost:8080/api/weather/${searchCity}`);
       setWeather(res.data);
 
       // Calculate if it's night based on sunrise/sunset times
-      const currentTime = Math.floor(Date.now() / 1000);
+      const currentTimeUnix = Math.floor(Date.now() / 1000);
       const sunrise = res.data.sys.sunrise;
       const sunset = res.data.sys.sunset;
-      setIsNight(currentTime < sunrise || currentTime > sunset);
+      setIsNight(currentTimeUnix < sunrise || currentTimeUnix > sunset);
 
       // Calculate local time adjusted for timezone
       const timezoneOffset = res.data.timezone; // In seconds
       const utcTime = Math.floor(Date.now() / 1000) + (new Date().getTimezoneOffset() * 60);
       const localTime = new Date((utcTime + timezoneOffset) * 1000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
-      setCurrentTime(localTime); // Store current time
-      
+      setCurrentTime(localTime);
+
       // Get country code and fetch capital's weather if available
       const countryCode = res.data.sys.country;
       setCountry(countryCode);
@@ -74,7 +77,31 @@ function App() {
       const forecastRes = await axios.get(`http://localhost:8080/api/forecast/${searchCity}`);
       const forecastList = forecastRes.data.list;
 
-      // Group by day and calculate averages
+      // FIXED: Extract actual min/max temp for CURRENT DAY (00:00 - 23:59) from forecast data
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Start of today (00:00)
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1); // Start of tomorrow (00:00 next day)
+
+      const todayStartUnix = Math.floor(today.getTime() / 1000);
+      const tomorrowStartUnix = Math.floor(tomorrow.getTime() / 1000);
+
+      const todayData = forecastList.filter(item => 
+        item.dt >= todayStartUnix && item.dt < tomorrowStartUnix
+      );
+
+      if (todayData.length > 0) {
+        const todayTemps = todayData.map(item => item.main.temp);
+        setDailyMinTemp(Math.min(...todayTemps).toFixed(1));
+        setDailyMaxTemp(Math.max(...todayTemps).toFixed(1));
+        console.log(`Today (${today.toDateString()}) Min: ${Math.min(...todayTemps).toFixed(1)}°C, Max: ${Math.max(...todayTemps).toFixed(1)}°C`); // Debug log
+      } else {
+        // Fallback to API's temp_min/max if no forecast data for today
+        setDailyMinTemp(weather.main.temp_min?.toFixed(1) || 'N/A');
+        setDailyMaxTemp(weather.main.temp_max?.toFixed(1) || 'N/A');
+      }
+
+      // Group forecast by day and calculate daily averages (for future days only)
       const dailyForecasts = {};
       forecastList.forEach(item => {
         const date = new Date(item.dt * 1000).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
@@ -87,13 +114,15 @@ function App() {
         dailyForecasts[date].descriptions.push(item.weather[0].description);
       });
 
-      // Process averaged forecasts for the first 5 days
-      const averagedForecasts = Object.keys(dailyForecasts).slice(0, 5).map(date => {
+      // Process averaged forecasts starting from TOMORROW (slice(1, 6) for 5 future days)
+      const sortedDates = Object.keys(dailyForecasts).sort();
+      const futureDates = sortedDates.slice(1, 6); // Skip today, take next 5 days
+      const averagedForecasts = futureDates.map(date => {
         const data = dailyForecasts[date];
         const avgTemp = data.tempSum / data.count;
         const avgHumidity = data.humiditySum / data.count;
 
-        // Find the most common description and icon for the day
+        // Determine most common weather description and icon for the day
         const descriptionCounts = {};
         const iconCounts = {};
         forecastList.forEach(item => {
@@ -105,14 +134,14 @@ function App() {
             iconCounts[icon] = (iconCounts[icon] || 0) + 1;
           }
         });
-        // Get most common description and icon
-        const mostCommonDescription = Object.entries(descriptionCounts).sort((a, b) => b[1] - a[1])[0][0];
-        const mostCommonIcon = Object.entries(iconCounts).sort((a, b) => b[1] - a[1])[0][0];
+        const mostCommonDescription = Object.entries(descriptionCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'clear';
+        const mostCommonIcon = Object.entries(iconCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || '01d';
+
         return { date, avgTemp, avgHumidity, description: mostCommonDescription, icon: mostCommonIcon };
       });
       setForecast(averagedForecasts);
 
-      // Extract next 24 hours of temperature data (3-hour intervals)
+      // Extract temperatures for the next 24 hours (filtered from forecast list)
       const now = Math.floor(Date.now() / 1000);
       const next24Hours = forecastList.filter(item => item.dt >= now && item.dt <= now + 24 * 3600);
       setHourlyTemps(next24Hours.map(item => ({
@@ -120,7 +149,7 @@ function App() {
         temp: item.main.temp
       })));
     } catch (err) {
-      console.error('Weather fetch error:', err); // Debug error
+      console.error('Weather fetch error:', err); // Log errors for debugging
       setError('Error fetching weather: ' + (err.response ? err.response.data : err.message) + ' (Check API key or city name)');
     } finally {
       setLoading(false);
@@ -169,19 +198,19 @@ function App() {
   useEffect(() => {
     setLoading(true);
     loadFavorites(); // Load favorites on mount
-    
+
     // Get user's current location
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        console.log("Geolocation coordinates:", pos.coords); // Debug log
+        console.log("Geolocation coordinates:", pos.coords); // Debug log for coordinates
         // Reverse geocode to get city name
         axios.get(`http://localhost:8080/api/reverse?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}`)
           .then((geoRes) => {
             let localCity = geoRes.data;
-            console.log("Reverse geocode result:", localCity); // Debug log
-            // Fallback to a known city if the result is a municipality or unexpected
+            console.log("Reverse geocode result:", localCity); // Debug log for geocode result
+            // Fallback to 'London' if result is invalid (e.g., municipality or non-alphabetic)
             if (localCity.toLowerCase().includes("municipality") || !localCity.match(/^[a-zA-Z\s]+$/)) {
-              localCity = "London"; // Default to London if not a city
+              localCity = "London";
             }
             setCity(localCity);
             fetchWeather(localCity);
@@ -199,7 +228,7 @@ function App() {
       }
     );
   }, []); // Empty dependency array: runs once on mount
-  
+
   /**
    * Handles city search form submission.
    * @param {Event} e - The form submission event.
@@ -207,7 +236,7 @@ function App() {
   const handleSearch = (e) => {
     e.preventDefault();
     if (city.trim()) {
-      console.log("Searching for city:", city); // Debug log
+      console.log("Searching for city:", city); // Debug log for search input
       fetchWeather(city);
       setCity(''); // Clear input after search
     } else {
@@ -236,11 +265,10 @@ function App() {
    * @returns {string} - The full icon URL.
    */
   const getIconUrl = (icon) => {
-    // Always use the OpenWeatherMap icon code if available
     if (icon) {
       return `http://openweathermap.org/img/wn/${icon}@2x.png`;
     }
-    // Fallback icon
+    // Fallback to a default icon if none provided
     return `http://openweathermap.org/img/wn/01d@2x.png`;
   };
 
@@ -315,8 +343,6 @@ function App() {
               <p>Sunrise: {new Date(weather.sys.sunrise * 1000).toLocaleTimeString()}</p>
               <p>Sunset: {new Date(weather.sys.sunset * 1000).toLocaleTimeString()}</p>
               <p>Feels Like: {weather.main.feels_like}°C</p>
-              <p>Min Temp: {weather.main.temp_min}°C</p>
-              <p>Max Temp: {weather.main.temp_max}°C</p>
             </div>
           )}
         </div>
@@ -371,17 +397,7 @@ function App() {
           {hourlyTemps.map((hour, idx) => (
             <div key={idx} className="flex justify-between p-2 bg-gray-200 rounded">
               <span>{hour.time}</span>
-              <span>
-                {hour.temp.toFixed(1)}°C
-                {hour.icon && (
-                  <img
-                    src={getIconUrl(hour.icon)}
-                    alt=""
-                    className="inline-block ml-2"
-                    style={{ width: 32, height: 32 }}
-                  />
-                )}
-              </span>
+              <span>{hour.temp.toFixed(1)}°C</span>
             </div>
           ))}
         </div>
