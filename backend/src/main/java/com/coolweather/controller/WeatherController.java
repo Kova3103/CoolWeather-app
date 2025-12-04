@@ -18,7 +18,7 @@ import java.util.stream.Collectors;
  */
 @RestController
 @RequestMapping("/api")
-@CrossOrigin(origins = {"http://localhost:3000", "http://localhost:3001"}) // Support both frontend ports
+@CrossOrigin(origins = {"http://localhost:3000", "http://localhost:3001","*"}) // Support both frontend ports
 public class WeatherController {
 
     @Autowired
