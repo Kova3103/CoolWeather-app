@@ -77,29 +77,6 @@ function App() {
       const forecastRes = await axios.get(`http://localhost:8080/api/forecast/${searchCity}`);
       const forecastList = forecastRes.data.list;
 
-      // FIXED: Extract actual min/max temp for CURRENT DAY (00:00 - 23:59) from forecast data
-      const today = new Date();
-      today.setHours(0, 0, 0, 0); // Start of today (00:00)
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1); // Start of tomorrow (00:00 next day)
-
-      const todayStartUnix = Math.floor(today.getTime() / 1000);
-      const tomorrowStartUnix = Math.floor(tomorrow.getTime() / 1000);
-
-      const todayData = forecastList.filter(item => 
-        item.dt >= todayStartUnix && item.dt < tomorrowStartUnix
-      );
-
-      if (todayData.length > 0) {
-        const todayTemps = todayData.map(item => item.main.temp);
-        setDailyMinTemp(Math.min(...todayTemps).toFixed(1));
-        setDailyMaxTemp(Math.max(...todayTemps).toFixed(1));
-        console.log(`Today (${today.toDateString()}) Min: ${Math.min(...todayTemps).toFixed(1)}°C, Max: ${Math.max(...todayTemps).toFixed(1)}°C`); // Debug log
-      } else {
-        // Fallback to API's temp_min/max if no forecast data for today
-        setDailyMinTemp(weather.main.temp_min?.toFixed(1) || 'N/A');
-        setDailyMaxTemp(weather.main.temp_max?.toFixed(1) || 'N/A');
-      }
 
       // Group forecast by day and calculate daily averages (for future days only)
       const dailyForecasts = {};
