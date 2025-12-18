@@ -34,9 +34,7 @@ function App() {
   const [hourlyTemps, setHourlyTemps] = useState([]);
   // State to toggle 24-hour forecast sidebar
   const [show24hForecast, setShow24hForecast] = useState(false);
-  // State for actual daily min and max temps for current day (00:00-23:59)
-  const [dailyMinTemp, setDailyMinTemp] = useState(null);
-  const [dailyMaxTemp, setDailyMaxTemp] = useState(null);
+
 
   /**
    * Fetches weather and forecast data for a given city.
