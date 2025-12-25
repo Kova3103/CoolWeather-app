@@ -1,5 +1,5 @@
 # Prerequisites:
-+ Java 17+: For the backend (Spring Boot).
++ Java 17+: For the backend (Spring Boot) - https://www.oracle.com/java/technologies/javase/jdk17-archive-downloads.html
 + Maven: To build the backend (included with Spring Boot or install via https://maven.apache.org/).
 + Node.js 18+ and npm: For the frontend (React) - download from https://nodejs.org/.
 + Git: To clone the repository (install from https://git-scm.com/).
