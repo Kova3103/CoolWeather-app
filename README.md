@@ -1,6 +1,6 @@
 # Prerequisites:
 + Java 17+: For the backend (Spring Boot) - https://www.oracle.com/java/technologies/javase/jdk17-archive-downloads.html
-+ Maven: To build the backend (included with Spring Boot or install via https://maven.apache.org/).
++ Maven: To build the backend (included with Spring Boot or install via https://maven.apache.org/). When on site download binary zip and paste its location in path in the environment variables (there are many tutorials on Youtube on how to install Maven).
 + Node.js 18+ and npm: For the frontend (React) - download from https://nodejs.org/.
 + Git: To clone the repository (install from https://git-scm.com/).
 
@@ -21,7 +21,7 @@ In one terminal run this code to setup the backend:
 
 In other terminal run this code to setup the frontend:
 + cd frontend 
-+ npm install
++ npm install (might encounter execution policy error ---solution in the How to run frontend section--- )
 
 
 ## How to run backend:
