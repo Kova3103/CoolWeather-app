@@ -39,6 +39,7 @@ At line:1 char:1
 
 
 Our node.js npm call is not malicious so to prevent this issue run this code: Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+
 Then once again run: 
 + npm start
 
