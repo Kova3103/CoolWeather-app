@@ -50,17 +50,31 @@ function App() {
       const res = await axios.get(`http://localhost:8080/api/weather/${searchCity}`);
       setWeather(res.data);
 
-      // Calculate if it's night based on sunrise/sunset times
-      const currentTimeUnix = Math.floor(Date.now() / 1000);
-      const sunrise = res.data.sys.sunrise;
-      const sunset = res.data.sys.sunset;
-      setIsNight(currentTimeUnix < sunrise || currentTimeUnix > sunset);
+  // Calculate if it's night based on sunrise/sunset times
+  const currentTimeUnix = Math.floor(Date.now() / 1000);
+  const sunrise = res.data.sys.sunrise;
+  const sunset = res.data.sys.sunset;
+  const night = currentTimeUnix < sunrise || currentTimeUnix > sunset;
+  setIsNight(night);
 
-      // Calculate local time adjusted for timezone
-      const timezoneOffset = res.data.timezone; // In seconds
-      const utcTime = Math.floor(Date.now() / 1000) + (new Date().getTimezoneOffset() * 60);
-      const localTime = new Date((utcTime + timezoneOffset) * 1000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
-      setCurrentTime(localTime);
+  // Calculate local time adjusted for timezone (API returns timezone offset in seconds)
+  const timezoneOffset = res.data.timezone; // In seconds
+  const utcTime = Math.floor(Date.now() / 1000) + (new Date().getTimezoneOffset() * 60);
+  const localTs = (utcTime + timezoneOffset) * 1000;
+  const localDate = new Date(localTs);
+
+  // Format HH:MM for the city's local time
+  const timeStr = localDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+
+  // Build a GMT offset label from the timezone offset (e.g., GMT+1 or GMT+5:30)
+  const offsetHoursFloat = timezoneOffset / 3600;
+  const sign = offsetHoursFloat >= 0 ? '+' : '-';
+  const absHours = Math.abs(offsetHoursFloat);
+  const hoursPart = Math.floor(absHours);
+  const minutesPart = Math.round((absHours - hoursPart) * 60);
+  const offsetLabel = `GMT${sign}${hoursPart}${minutesPart ? ':' + String(minutesPart).padStart(2, '0') : ''}`;
+
+  setCurrentTime(`${timeStr} ${offsetLabel}`);
 
       // Get country code and fetch capital's weather if available
       const countryCode = res.data.sys.country;
@@ -112,15 +126,19 @@ function App() {
         const mostCommonDescription = Object.entries(descriptionCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'clear';
         const mostCommonIcon = Object.entries(iconCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || '01d';
 
-        return { date, avgTemp, avgHumidity, description: mostCommonDescription, icon: mostCommonIcon };
+  // Force icon to day ('d') or night ('n') variant so all panels match current local day/night
+  const iconSuffix = night ? 'n' : 'd';
+  const normalizedIcon = mostCommonIcon ? (mostCommonIcon.slice(0, -1) + iconSuffix) : mostCommonIcon;
+  return { date, avgTemp, avgHumidity, description: mostCommonDescription, icon: normalizedIcon };
       });
       setForecast(averagedForecasts);
 
       // Extract temperatures for the next 24 hours (filtered from forecast list)
       const now = Math.floor(Date.now() / 1000);
       const next24Hours = forecastList.filter(item => item.dt >= now && item.dt <= now + 24 * 3600);
+      // Use the city's timezone offset when formatting hourly times so labels match the city's local time
       setHourlyTemps(next24Hours.map(item => ({
-        time: new Date(item.dt * 1000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+        time: new Date((item.dt + timezoneOffset) * 1000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
         temp: item.main.temp
       })));
     } catch (err) {
@@ -315,8 +333,8 @@ function App() {
               <p>Cloudiness: {weather.clouds.all}%</p>
               <p>Sea Level: {weather.main.sea_level || 'N/A'} hPa</p>
               <p>Ground Level: {weather.main.grnd_level || 'N/A'} hPa</p>
-              <p>Sunrise: {new Date(weather.sys.sunrise * 1000).toLocaleTimeString()}</p>
-              <p>Sunset: {new Date(weather.sys.sunset * 1000).toLocaleTimeString()}</p>
+              <p>Sunrise: {new Date((weather.sys.sunrise + (weather.timezone || 0)) * 1000).toLocaleTimeString()}</p>
+              <p>Sunset: {new Date((weather.sys.sunset + (weather.timezone || 0)) * 1000).toLocaleTimeString()}</p>
               <p>Feels Like: {weather.main.feels_like}°C</p>
             </div>
           )}
